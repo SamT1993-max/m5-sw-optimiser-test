@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M5 South-West Optimiser</title>
+    <!-- This links your CSS file -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- PASTE YOUR ENTIRE CODEPEN HTML BOX BELOW THIS LINE -->
+<!-- ONLY PASTE YOUR KEY ON THIS LINE -->
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAO12-uFltHHKME0OfhHK_4vyYnXUVkvfI&libraries=places&loading=async"></script>
+
+<div class="app-container">
+    <h1>M5 South-West Optimiser</h1>
+    
+    <div class="input-group">
+        <label>From: <span id="clearOriginBtn" class="clear-btn">Clear ✖</span></label>
+        <gmp-place-autocomplete id="originPicker" included-region-codes="au" placeholder="Choose start location"></gmp-place-autocomplete>
+    </div>
+    
+    <div class="input-group">
+        <label>To:</label>
+        <gmp-place-autocomplete id="destPicker" included-region-codes="au" placeholder="Choose destination"></gmp-place-autocomplete>
+    </div>
+    
+    <div class="input-group" style="flex-direction: row; align-items: center; margin-bottom: 5px;">
+        <input type="checkbox" id="showDevResults" style="width: auto; margin: 0 10px 0 0; cursor: pointer;">
+        <label for="showDevResults" style="margin: 0; font-weight: normal; cursor: pointer;">Show all results (Dev Mode)</label>
+    </div>
+    
+    <button id="calcBtn" onclick="calculateRoutes()">Calculate...</button>
+
+    <div class="result-section" id="results">
+        
+        <!-- Beta Disclaimer Box -->
+        <div style="background-color: #f8f9fa; color: #5f6368; padding: 12px; border-radius: 10px; font-size: 12px; margin-bottom: 15px; text-align: center; border: 1px solid #e8eaed;">
+            ℹ️ <b>Beta Note:</b> The crossed-out price is the upfront toll. The final price assumes you are eligible for the NSW M5 SW Cashback Scheme.
+        </div>
+
+        <!-- Default Card -->
+        <div class="route-card" id="cardDefault">
+            <div class="route-title"><span>Default route</span></div>
+            <div class="route-stats" id="defaultStats">Time: -- min | ETA: --:--<br>Distance: -- km</div>
+            <div class="route-cost" id="defaultCostBox">Calculating live tolls...</div>
+            <div class="button-group">
+                <button class="action-btn dir-btn" onclick="launchGoogleMaps('default')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.17 2.24a1.31 1.31 0 0 0-1.85 0l-7.58 7.58a1.31 1.31 0 0 0 0 1.85l7.58 7.58a1.31 1.31 0 0 0 1.85 0l7.58-7.58a1.31 1.31 0 0 0 0-1.85l-7.58-7.58zM10.5 14v-2.5H14V13l3.5-3-3.5-3v1.5h-5V14h1.5z"/></svg> Directions
+                </button>
+            </div>
+        </div>
+
+        <!-- M5 Optimised Card -->
+        <div class="route-card optimised" id="cardOptimised">
+            <div class="route-title"><span id="optTitleText">M5 SW Optimised route</span></div>
+            <div class="route-stats" id="optStats">Time: -- min | ETA: --:--<br>Distance: -- km</div>
+            <div class="route-cost" id="optCostBox">Calculating live tolls...</div>
+            
+            <button class="action-btn dir-btn" id="optContinueBtn" onclick="toggleExpandedOptimised()" style="display: none; margin-top: 15px;">Continue</button>
+            
+            <div id="optExplanationText" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #c8e6c9;">
+                <p id="dynamicExplainer" style="font-size: 13px; color: #3a3a3c; margin-top: 0; margin-bottom: 15px; line-height: 1.4;"></p>
+            </div>
+
+            <div class="button-group" id="optButtonGroup" style="display: none;">
+                <button class="action-btn dir-btn" id="optDirBtn" onclick="launchGoogleMaps('optimised')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.17 2.24a1.31 1.31 0 0 0-1.85 0l-7.58 7.58a1.31 1.31 0 0 0 0 1.85l7.58 7.58a1.31 1.31 0 0 0 1.85 0l7.58-7.58a1.31 1.31 0 0 0 0-1.85l-7.58-7.58zM10.5 14v-2.5H14V13l3.5-3-3.5-3v1.5h-5V14h1.5z"/></svg> Directions
+                </button>
+            </div>
+        </div>
+
+        <!-- Dev Mode Results Box -->
+        <div id="devResultsBox" style="display: none; background-color: #f8f9fa; border: 1px solid #e5e5ea; border-radius: 12px; padding: 15px; margin-bottom: 15px; font-size: 13px;">
+            <strong>🛠️ Ramp Race Breakdown:</strong>
+            <ul id="devResultsList" style="margin: 10px 0 0 0; padding-left: 20px; color: #3a3a3c; line-height: 1.6;"></ul>
+        </div>
+
+        <!-- Avoid Tolls Card -->
+        <div class="route-card" id="cardAvoid">
+            <div class="route-title"><span id="avoidTitleText">Avoid tolls route</span></div>
+            <div class="route-stats" id="avoidStats">Time: -- min | ETA: --:--<br>Distance: -- km</div>
+            <div class="route-cost" id="avoidCostBox" style="color: #555;">Tolls: $0.00</div>
+            <div class="button-group" id="avoidButtonGroup">
+                <button class="action-btn dir-btn" onclick="launchGoogleMaps('avoid')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.17 2.24a1.31 1.31 0 0 0-1.85 0l-7.58 7.58a1.31 1.31 0 0 0 0 1.85l7.58 7.58a1.31 1.31 0 0 0 1.85 0l7.58-7.58a1.31 1.31 0 0 0 0-1.85l-7.58-7.58zM10.5 14v-2.5H14V13l3.5-3-3.5-3v1.5h-5V14h1.5z"/></svg> Directions
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+    <!-- PASTE YOUR ENTIRE CODEPEN HTML BOX ABOVE THIS LINE -->
+
+    <!-- This links your JS file -->
+    <script src="script.js"></script>
+</body>
+</html>
